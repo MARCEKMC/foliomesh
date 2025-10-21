@@ -1,0 +1,169 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum BlockType {
+  INTRO
+  EXPERIENCE
+  PROJECTS
+  CERTIFICATES
+  CONTACT
+}
+
+enum ProjectKind {
+  EXTERNAL
+  GITHUB
+}
+
+// Models
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  supabaseUserId  String   @unique @map("supabase_user_id")
+  givenName       String   @map("given_name")
+  familyName1     String   @map("family_name1")
+  familyName2     String?  @map("family_name2")
+  middleName      String?  @map("middle_name")
+  avatarUrl       String?  @map("avatar_url")
+  localePref      String?  @default("en") @map("locale_pref")
+  preferredSlug   String?  @map("preferred_slug")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  portfolios   Portfolio[]
+  integrations Integration[]
+  rateLimits   RateLimit[]
+
+  @@map("users")
+}
+
+model Portfolio {
+  id             String     @id @default(cuid())
+  userId         String     @map("user_id")
+  subdomainSlug  String     @unique @map("subdomain_slug")
+  visibility     Visibility @default(PRIVATE)
+  privateToken   String?    @map("private_token")
+  theme          Json       @default("{\"palette\":\"blue\",\"font\":\"inter\",\"background\":\"gradient\"}")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blocks       Block[]
+  projects     Project[]
+  translations Translation[]
+  visits       Visit[]
+
+  @@map("portfolios")
+}
+
+model Block {
+  id          String    @id @default(cuid())
+  portfolioId String    @map("portfolio_id")
+  type        BlockType
+  order       Int
+  content     Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, type])
+  @@map("blocks")
+}
+
+model Project {
+  id          String      @id @default(cuid())
+  portfolioId String      @map("portfolio_id")
+  kind        ProjectKind
+  title       String
+  url         String
+  description String?
+  coverImage  String?     @map("cover_image")
+  repoMeta    Json?       @map("repo_meta") // stars, language, etc.
+  order       Int
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@map("projects")
+}
+
+model Integration {
+  id                  String   @id @default(cuid())
+  userId              String   @map("user_id")
+  githubUsername      String?  @map("github_username")
+  githubConnected     Boolean  @default(false) @map("github_connected")
+  githubAccessToken   String?  @map("github_access_token")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("integrations")
+}
+
+model Translation {
+  id           String   @id @default(cuid())
+  portfolioId  String   @map("portfolio_id")
+  langTarget   String   @map("lang_target")
+  checksumBase String   @map("checksum_base")
+  blocksJson   Json     @map("blocks_json")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, langTarget])
+  @@map("translations")
+}
+
+model Visit {
+  id           String   @id @default(cuid())
+  portfolioId  String   @map("portfolio_id")
+  timestamp    DateTime @default(now())
+  ipHash       String   @map("ip_hash")
+  uaHash       String   @map("ua_hash")
+  referrerHash String?  @map("referrer_hash")
+
+  // Relations
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@map("visits")
+}
+
+model RateLimit {
+  id          String   @id @default(cuid())
+  userId      String?  @map("user_id")
+  scope       String   // 'signup', 'edit', 'translate', etc.
+  key         String   // IP or userId
+  counter     Int      @default(1)
+  windowStart DateTime @default(now()) @map("window_start")
+  expiresAt   DateTime @map("expires_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([scope, key])
+  @@map("rate_limits")
+}
