@@ -69,7 +69,7 @@ export default function HomePage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `https://foliomesh.com/auth/callback`
         }
       })
       if (error) throw error
@@ -82,27 +82,48 @@ export default function HomePage() {
   }
 
   const handleEmailLogin = async () => {
+    if (!email) {
+      toast.error('Por favor ingresa tu email')
+      return
+    }
+    
     setLoading(true)
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+          emailRedirectTo: `https://foliomesh.com/auth/callback`
         }
       })
-      if (error) throw error
-      toast.success('Te hemos enviado un enlace de acceso a tu email')
+      
+      if (error) {
+        console.error('Supabase login error:', error)
+        throw error
+      }
+      
+      toast.success(`📧 Te hemos enviado un enlace de acceso a ${email}`)
       setShowLogin(false)
+      setEmail('')
     } catch (error: any) {
-      toast.error('Error al enviar el enlace de acceso')
-      console.error('Error:', error)
+      console.error('Login error details:', error)
+      toast.error(`Error: ${error.message || 'No se pudo enviar el enlace de acceso'}`)
     } finally {
       setLoading(false)
     }
   }
 
   const handleEmailRegister = async () => {
+    if (!email || !password) {
+      toast.error('Por favor completa todos los campos')
+      return
+    }
+    
+    if (password.length < 6) {
+      toast.error('La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+    
     setLoading(true)
     try {
       const { error } = await supabase.auth.signUp({
@@ -112,12 +133,23 @@ export default function HomePage() {
           emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       })
-      if (error) throw error
-      toast.success('Te hemos enviado un enlace de verificación a tu email')
+      
+      if (error) {
+        console.error('Supabase register error:', error)
+        throw error
+      }
+      
+      toast.success(`📧 Te hemos enviado un enlace de verificación a ${email}`)
       setShowRegister(false)
+      setEmail('')
+      setPassword('')
     } catch (error: any) {
-      toast.error('Error al crear la cuenta')
-      console.error('Error:', error)
+      console.error('Register error details:', error)
+      if (error.message?.includes('already registered')) {
+        toast.error('Este email ya está registrado. Intenta iniciar sesión.')
+      } else {
+        toast.error(`Error: ${error.message || 'No se pudo crear la cuenta'}`)
+      }
     } finally {
       setLoading(false)
     }
