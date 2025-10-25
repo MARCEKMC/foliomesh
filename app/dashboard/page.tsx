@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { createBrowserClient } from '@supabase/ssr'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -26,14 +26,25 @@ export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
+  
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   useEffect(() => {
     const initializeUser = async () => {
       try {
+        // Dar tiempo para que la sesión se establezca
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
         // Verificar sesión de Supabase
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
-        if (sessionError || !session) {
+        console.log('Dashboard - Session check:', session?.user?.email)
+        
+        if (sessionError || !session?.user) {
+          console.log('Dashboard - No session, redirecting to home')
           router.push('/')
           return
         }

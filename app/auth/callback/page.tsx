@@ -16,24 +16,52 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Manejar el callback de autenticación
-        const { data, error } = await supabase.auth.getSession()
+        // Procesar el hash URL para obtener el token
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const accessToken = hashParams.get('access_token')
+        const refreshToken = hashParams.get('refresh_token')
         
-        if (error) {
-          console.error('Auth callback error:', error)
-          throw error
+        if (accessToken && refreshToken) {
+          // Establecer la sesión con los tokens
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+          
+          if (error) {
+            console.error('Error setting session:', error)
+            throw error
+          }
+          
+          if (data.session?.user) {
+            console.log('Session established successfully:', data.session.user.email)
+            toast.success(`¡Bienvenido a Foliomesh, ${data.session.user.email}!`)
+            
+            // Dar tiempo para que la sesión se establezca completamente
+            setTimeout(() => {
+              router.push('/dashboard')
+            }, 1000)
+            return
+          }
+        }
+        
+        // Fallback: verificar sesión existente
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError)
+          throw sessionError
         }
 
-        if (data.session?.user) {
-          // Usuario autenticado exitosamente
-          console.log('Usuario autenticado:', data.session.user.email)
-          toast.success(`¡Bienvenido a Foliomesh, ${data.session.user.email}!`)
+        if (sessionData.session?.user) {
+          console.log('Existing session found:', sessionData.session.user.email)
+          toast.success(`¡Bienvenido de vuelta, ${sessionData.session.user.email}!`)
           
-          // Redirigir al dashboard
-          router.push('/dashboard')
+          setTimeout(() => {
+            router.push('/dashboard')
+          }, 1000)
         } else {
-          // No hay sesión válida
-          console.log('No session found, redirecting to home')
+          console.log('No valid session found')
           toast.error('No se pudo completar la autenticación')
           router.push('/')
         }
@@ -52,7 +80,7 @@ export default function AuthCallback() {
       <div className="text-center bg-white p-8 rounded-lg shadow-lg">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
         <p className="mt-4 text-gray-600 text-lg">Completando autenticación...</p>
-        <p className="mt-2 text-gray-400 text-sm">Te redirigiremos en un momento</p>
+        <p className="mt-2 text-gray-400 text-sm">Te redirigiremos al dashboard en un momento</p>
       </div>
     </div>
   )
