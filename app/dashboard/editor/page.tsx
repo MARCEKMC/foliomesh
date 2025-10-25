@@ -59,7 +59,7 @@ export default function EditorPage() {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (!session) {
-          router.push('/auth/signin')
+          router.push('/')
           return
         }
 

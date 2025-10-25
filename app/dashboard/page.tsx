@@ -34,7 +34,7 @@ export default function DashboardPage() {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         
         if (sessionError || !session) {
-          router.push('/auth/signin')
+          router.push('/')
           return
         }
 
